@@ -255,9 +255,25 @@ Reload the unpacked extension at `chrome://extensions`, open Settings, select **
 
 All four AI features use the selected provider. Existing cached results remain; clear cached digests in Settings to regenerate with Codex. Test an overview, an explanation, subtitle translation, and note polishing on a real YouTube video. Codex uses the Responses API with low reasoning effort and `store: false`; incomplete or refused outputs are reported as errors.
 
-## Local video playback
+## v1.4.0: local video and YouTube subtitles
 
-Open **Local video / 本地视频** from Settings or the side panel. Select a local video or drop one onto the player. Native controls provide playback, volume, seeking, and fullscreen; additional controls provide speed and 10-second skips. No API key, Supadata request, upload, or network connection is required. MP4 (H.264/AAC) and WebM are recommended; other containers depend on browser codec support. This page plays video only, without AI analysis or subtitle transcription. Reopening the page requires choosing the file again.
+This modified version includes two different subtitle workflows:
+
+- **Local video:** Whisper Base recognizes speech on your computer, generates timestamped subtitles, and exports SRT. No API key or video upload is required. The current limit is **250 MB and 30 minutes per video**.
+- **YouTube:** Supadata retrieves the video's existing native captions and requires your Supadata API key. Videos without available native captions do not fall back to audio transcription. AI translation and other AI features require a separate key for the selected AI provider.
+
+### Generate subtitles from a local video
+
+1. Open **Local video / 本地视频** from Settings or the side panel, then select or drop a video.
+2. Click **下载 / 检查识别模型** to download the Whisper Base model on first use. Main model weights are approximately 77 MB; downloading requires access to Hugging Face.
+3. Choose English, Chinese, or automatic language detection, then click **生成字幕**.
+4. Click a subtitle to seek to its timestamp. Click **导出 SRT** to save the subtitles before closing the page or replacing the video, which clears them.
+
+Once the model is cached, recognition runs locally without a network connection. Clearing the model or browser cache requires downloading it again. Playback supports volume, seeking, fullscreen, speed, and 10-second skips. MP4 (H.264/AAC) or WebM is recommended; playback and audio decoding depend on browser codec support. Reopening the page requires choosing the file again. Local subtitles appear on the player page; this workflow does not include AI analysis or subtitle import.
+
+### Verification status
+
+The published v1.4.0 source passed 69 automated tests, release checks, and packaging. Actual local-video transcription, live YouTube interactions, and online provider requests have not yet been manually verified for this publication. Recognition accuracy and performance still need testing with real videos.
 
 ## Baidu Netdisk preview
 
@@ -265,7 +281,7 @@ Refresh the pan.baidu.com playback page after updating, start playback, then ope
 
 ### v1.3.1 source isolation
 
-Local playback has a dedicated informational side panel; local subtitle import and speech transcription are not yet implemented. YouTube lookup is restricted to the active tab in the current window, without falling back to another YouTube tab. Reload the extension and refresh the local player after updating.
+Local playback has a dedicated informational side panel. Since v1.4.0, speech transcription is available on the local player page; local subtitle import is not implemented. YouTube lookup is restricted to the active tab in the current window, without falling back to another YouTube tab. Reload the extension and refresh the local player after updating.
 
 ## Attribution
 
