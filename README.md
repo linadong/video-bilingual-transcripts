@@ -13,26 +13,16 @@ Turn every YouTube video into a resource for deep learning. YouTube Digest bring
 
 YouTube Digest is a bring-your-own-key project installed locally from GitHub. It is not available through the Chrome Web Store, does not include API credits, and does not run a developer-operated server.
 
-![YouTube Digest demo](YouTube%20Digest%20demo.png)
-
-## New in v1.2.0
-
-- Search transcript words or phrases and move through every match.
-- Use one Original, Chinese, or bilingual setting across Transcript, Overview, and Notes. New videos stay in Original by default.
-- Translate visible Overview and Notes content progressively in small cached batches.
-- Explain selected transcript text or save it directly as a timestamped note.
-- Keep your transcript position across navigation, with the panel closing automatically outside YouTube video pages.
-
 ## Install with your coding agent
 
 You do not need to understand the code or use the command line. Send this message to your coding agent:
 
-> Download or clone this project into a permanent folder I choose, tell me its exact full path, and use that same folder for Chrome's Load unpacked step. If I need a suggestion during this first installation, offer `~/Documents/youtube-digest` on macOS or Linux, or `%USERPROFILE%\Documents\youtube-digest` on Windows, but do not assume either path. Walk me through installation and setup in simple terms. https://github.com/zarazhangrui/youtube-digest
+> Download or clone this project into a permanent folder I choose, tell me its exact full path, and use that same folder for Chrome's Load unpacked step. If I need a suggestion during this first installation, offer `~/Documents/youtube-digest` on macOS or Linux, or `%USERPROFILE%\Documents\youtube-digest` on Windows, but do not assume either path. Walk me through installation and setup in simple terms. https://github.com/linadong/video-bilingual-transcripts
 
 Your agent should:
 
 1. Ask where you want to keep the project, download or clone it there, and tell you the exact full path. If you want a suggestion, it can offer `~/Documents/youtube-digest` on macOS or Linux, or `%USERPROFILE%\Documents\youtube-digest` on Windows.
-2. Open the official Supadata and DeepSeek pages below and help you create your own accounts.
+2. Open the official Supadata page and your chosen AI provider's page (DeepSeek, Claude, or OpenAI Codex) below and help you create your own accounts.
 3. Walk you through selecting the exact project folder you chose in Chrome with **Load unpacked**.
 4. Show you where to enter your API keys in the extension's **Settings** page.
 5. Open a YouTube video with captions and confirm the transcript and translation work.
@@ -45,7 +35,7 @@ Never paste an API key into an AI chat, source file, screenshot, or public messa
 
 If you prefer to do it yourself:
 
-1. Open [github.com/zarazhangrui/youtube-digest](https://github.com/zarazhangrui/youtube-digest).
+1. Open [github.com/linadong/video-bilingual-transcripts](https://github.com/linadong/video-bilingual-transcripts).
 2. Choose **Code**, then **Download ZIP**.
 3. Choose a permanent folder and unzip the project there. Optional suggestions are `~/Documents/youtube-digest` on macOS or Linux, or `%USERPROFILE%\Documents\youtube-digest` on Windows. You may use a different folder.
 4. In Chrome, open `chrome://extensions`.
@@ -61,7 +51,7 @@ Because this is an unpacked extension, it does not update automatically. After d
 YouTube Digest needs two keys under your own provider accounts:
 
 1. A **Supadata API key** to retrieve YouTube transcripts.
-2. A **DeepSeek API key** for overviews, explanations, translation, and automatic note polishing.
+2. An **AI provider API key** for overviews, explanations, translation, and automatic note polishing. Choose **DeepSeek**, **Claude**, or **OpenAI Codex** in Settings, then get a key for that provider.
 
 ### Get a Supadata API key
 
@@ -84,16 +74,36 @@ See the [official Supadata documentation](https://docs.supadata.ai/) if the dash
 
 See the [official DeepSeek API documentation](https://api-docs.deepseek.com/) for current account and API details.
 
+### Get a Claude (Anthropic) API key
+
+1. Open the official [Anthropic Console API Keys page](https://console.anthropic.com/settings/keys).
+2. Sign in or create an Anthropic account when prompted.
+3. Choose **Create Key**, give it a recognizable name such as `YouTube Digest`, and create it.
+4. Copy the key immediately. The full key may only be shown once.
+5. Paste it into **Claude API key** in YouTube Digest Settings.
+6. If Anthropic reports insufficient credit, add credit in your Anthropic Console account and try again.
+
+See the [official Anthropic API documentation](https://docs.anthropic.com/) for current account and API details.
+
 Open **Settings** from the side panel. You can also open the YouTube Digest **Options** page from its card at `chrome://extensions` or by right-clicking its toolbar icon. Paste keys only into these Settings fields. Never paste a key into an AI chat, repository file, screenshot, or public message.
 
-The published version supports DeepSeek V4 Flash as its only AI provider:
+The published version supports three built-in AI providers, selectable from the **AI provider** dropdown in Settings:
 
 ```text
-Base URL: https://api.deepseek.com
-Model: deepseek-v4-flash
+DeepSeek V4 Flash
+  Base URL: https://api.deepseek.com
+  Model: deepseek-v4-flash
+
+Claude Haiku 4.5
+  Base URL: https://api.anthropic.com
+  Model: claude-haiku-4-5-20251001
+
+OpenAI Codex (GPT-5.3-Codex)
+  Endpoint: https://api.openai.com/v1/responses
+  Model: gpt-5.3-codex
 ```
 
-YouTube Digest sends every DeepSeek request in non-thinking mode for responsive, predictable interactions. The endpoint and model are fixed in Settings, so the only AI credential you enter is your DeepSeek API key. To use another provider or model, copy the safe customization prompt in Settings and give it to a coding agent for your local copy. Never add an API key to that prompt or chat.
+Each provider's endpoint and model are fixed in Settings, so the only AI credential you enter is the API key for whichever provider you pick; switching providers keeps all provider keys saved so you can switch back later. YouTube Digest sends every DeepSeek request in non-thinking mode for responsive, predictable interactions; Claude has no equivalent reasoning mode to disable. To use a different provider or model than these three, copy the safe customization prompt in Settings and give it to a coding agent for your local copy. Never add an API key to that prompt or chat.
 
 Keys and settings are stored in Chrome's local extension storage on your device. Release builds do not include or use `config.js`.
 
@@ -114,7 +124,7 @@ Keys and settings are stored in Chrome's local extension storage on your device.
 - Original, Simplified Chinese, and aligned bilingual transcript views.
 - AI overviews, selected-text explanations, translation, and automatic note polishing.
 - Local notes and a local cache for recent transcript and digest results.
-- DeepSeek V4 Flash for all published AI features. Other providers require a local code adaptation and are not supported by this published version.
+- DeepSeek V4 Flash, Claude Haiku 4.5, or OpenAI Codex (GPT-5.3-Codex) for AI features, selectable in Settings. Other providers require a local code adaptation and are not supported by this published version.
 
 Shorts, live streams, private or access-restricted videos, and videos without an available native transcript may not work. Firefox, Safari, mobile browsers, and other Chromium browsers are not currently tested or supported.
 
@@ -132,26 +142,27 @@ The [Supadata transcript documentation](https://docs.supadata.ai/get-transcript)
 
 With the current native-only behavior, the free tier can cover roughly 100 transcript lookups per month when each request succeeds once. Retries and unavailable-caption lookups also consume credits, so actual successful-video coverage can be lower.
 
-DeepSeek usage is separate from Supadata. YouTube Digest does not collect payments or resell access. Set spending limits and monitor both accounts.
+Your AI provider's usage is separate from Supadata. DeepSeek and Anthropic each apply their own free quota, rate limits, or charges. YouTube Digest does not collect payments or resell access. Set spending limits and monitor both accounts. The estimate below explains the current DeepSeek translation cost; see the Claude pricing note further down for Anthropic.
 
-## DeepSeek V4 Flash pricing
+## DeepSeek V4 Flash translation cost estimate
 
-As of August 27, 2026, DeepSeek lists these USD prices per 1 million tokens on its official [pricing page](https://api-docs.deepseek.com/quick_start/pricing/):
+Current as of August 10, 2026, DeepSeek lists the following prices per 1 million tokens on its official [pricing page](https://api-docs.deepseek.com/quick_start/pricing/):
 
-| Token type | Off-peak | Peak |
-| --- | ---: | ---: |
-| Cache-hit input | $0.007 | $0.014 |
-| Cache-miss input | $0.22 | $0.44 |
-| Output | $0.66 | $1.32 |
+- Cache-hit input: **$0.0028 USD**.
+- Cache-miss input: **$0.14 USD**.
+- Output: **$0.28 USD**.
 
-Peak hours are 01:00–04:00 and 06:00–10:00 UTC, Monday through Friday. All other hours use off-peak rates.
+DeepSeek says these prices may increase soon, so check the current pricing page before relying on this estimate. Its official [token usage guide](https://api-docs.deepseek.com/quick_start/token_usage/) estimates about 0.3 token per English character and about 0.6 token per Chinese character. Its [context caching guide](https://api-docs.deepseek.com/guides/kv_cache/) explains the automatic best-effort disk cache used for repeated prefixes.
 
-A measured 20-minute English talk used about **32,600 input tokens** and an estimated **3,500 to 4,500 output tokens** across 43 small translation batches. At current prices, translating the full video costs approximately:
+A measured 20-minute English talk contained **2,935 spoken English words** and 15,433 transcript characters. With YouTube Digest's current grouping, it became 128 semantic segments and 43 requests of three segments each. Repeated prompts and JSON brought the rendered input to about 108,528 English characters, or **about 32,600 input tokens** using DeepSeek's 0.3 token per English character heuristic. The translated Chinese JSON output is estimated at about 3,500 to 4,500 tokens using the 0.6 token per Chinese character heuristic, plus JSON and ID overhead.
 
-- **Off-peak: $0.003 to $0.010 USD**.
-- **Peak: $0.005 to $0.020 USD**.
+If all input is billed as cache miss, input costs about $0.0046 and output costs about $0.0010 to $0.0013, for a total of about $0.0056 to $0.0059. When much of the repeated system prompt hits DeepSeek's automatic best-effort cache, a realistic lower end is about $0.002 to $0.003. A practical estimate for fully translating this talk is therefore **$0.002 to $0.006 USD, about ¥0.02 to ¥0.04**.
 
-The lower end assumes most repeated input hits DeepSeek's cache. The upper end assumes cache misses. Translation is lazy and cached, so translating only part of a video costs less. Check the official page before relying on these prices.
+Translation is lazy and progressive. Cached segments are reused, and only rows you request by scrolling into them incur calls. Retries, provider behavior, and pricing changes can increase the final cost.
+
+## Claude Haiku 4.5 pricing
+
+YouTube Digest has not run the same measured benchmark for Claude, so check Anthropic's official [pricing page](https://www.anthropic.com/pricing) for current per-token rates before relying on Claude for high-volume use. Anthropic bills input and output tokens separately and offers its own prompt-caching discounts; the request pattern (many small translation batches per video) is the same one measured for DeepSeek above, so expect a similar number of requests per video even though the per-token price differs.
 
 ## Remix it with your coding agent
 
@@ -176,11 +187,11 @@ If you want another AI provider or model, first open the exact YouTube Digest pr
 YouTube Digest makes provider requests directly from the extension:
 
 1. It sends a canonical YouTube watch URL to Supadata to request the native transcript.
-2. It sends the transcript and relevant video metadata to DeepSeek when you request AI features.
+2. It sends the transcript and relevant video metadata to your selected AI provider (DeepSeek, Claude, or OpenAI Codex) when you request AI features.
 3. Focused features send only the content they need, such as selected text with context or small transcript batches for translation.
 4. It stores keys, settings, notes, and recent cache entries locally in Chrome.
 
-There is no YouTube Digest account system, advertising, analytics, or telemetry. Supadata and DeepSeek still receive data under their own terms and privacy policies. See [PRIVACY.md](PRIVACY.md) for details.
+There is no YouTube Digest account system, advertising, analytics, or telemetry. Supadata and your selected AI provider still receive data under their own terms and privacy policies. See [PRIVACY.md](PRIVACY.md) for details.
 
 ## Troubleshooting
 
@@ -201,8 +212,8 @@ There is no YouTube Digest account system, advertising, analytics, or telemetry.
 
 ### YouTube Digest asks for setup
 
-- Open **Settings** and save both a Supadata key and a DeepSeek key.
-- This published version uses the fixed DeepSeek V4 Flash endpoint and model. There are no Base URL or Model fields to configure.
+- Open **Settings** and save both a Supadata key and a key for your selected AI provider.
+- This published version uses a fixed endpoint and model per provider: DeepSeek V4 Flash, Claude Haiku 4.5, or OpenAI Codex (GPT-5.3-Codex). There are no Base URL or Model fields to configure.
 - If Settings says a legacy custom provider was removed, enter a DeepSeek key. The old AI key was cleared so it could not be reused with the wrong service.
 
 ### No transcript is found
@@ -215,9 +226,9 @@ YouTube Digest will not fall back to generated transcription.
 
 ### AI requests fail
 
-- A `401` or `403` usually means the DeepSeek key or account access is invalid.
-- A `429` usually means a DeepSeek rate or spending limit was reached.
-- Confirm the key was created in the DeepSeek Platform account linked above and that the account has available credit.
+- A `401` or `403` usually means the AI provider's key or account access is invalid.
+- A `429` usually means the AI provider's rate or spending limit was reached.
+- Confirm the key was created in the correct account (DeepSeek Platform, Anthropic Console, or OpenAI Platform, matching the provider selected in Settings) and that the account has available credit.
 - If you adapted a local copy for another model, use the Settings customization prompt again and ask your coding agent to inspect that local implementation.
 
 Never share API keys, private transcripts, or personal notes in chats, screenshots, or logs.
@@ -237,3 +248,25 @@ The agent should also reload the unpacked extension in Chrome and test several r
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Use OpenAI Codex
+
+Reload the unpacked extension at `chrome://extensions`, open Settings, select **OpenAI Codex (GPT-5.3-Codex)**, enter your [OpenAI API key](https://platform.openai.com/api-keys), and save. Keep your Supadata key for subtitles. API usage is billed separately from ChatGPT subscriptions; this extension does not reuse your IDE login. Your API project must have access to [GPT-5.3-Codex](https://developers.openai.com/api/docs/models/gpt-5.3-codex).
+
+All four AI features use the selected provider. Existing cached results remain; clear cached digests in Settings to regenerate with Codex. Test an overview, an explanation, subtitle translation, and note polishing on a real YouTube video. Codex uses the Responses API with low reasoning effort and `store: false`; incomplete or refused outputs are reported as errors.
+
+## Local video playback
+
+Open **Local video / 本地视频** from Settings or the side panel. Select a local video or drop one onto the player. Native controls provide playback, volume, seeking, and fullscreen; additional controls provide speed and 10-second skips. No API key, Supadata request, upload, or network connection is required. MP4 (H.264/AAC) and WebM are recommended; other containers depend on browser codec support. This page plays video only, without AI analysis or subtitle transcription. Reopening the page requires choosing the file again.
+
+## Baidu Netdisk preview
+
+Refresh the pan.baidu.com playback page after updating, start playback, then open the extension side panel. Pages with fid/fsid or file path parameters are supported through accessible standard video elements. Cross-origin frames, custom players, and burned-in subtitles are not supported. Authenticated Baidu playback has not been tested. Enable captions and try Read page captions, or import UTF-8 SRT/VTT. Select cues for Chinese translation or explanation, generate chapter summaries, and click timestamps to seek. AI uses your configured provider without Supadata. Manually written timestamped notes are local, limited to 100 per video; delete individually or reset extension data. Captions and AI results are session-only.
+
+### v1.3.1 source isolation
+
+Local playback has a dedicated informational side panel; local subtitle import and speech transcription are not yet implemented. YouTube lookup is restricted to the active tab in the current window, without falling back to another YouTube tab. Reload the extension and refresh the local player after updating.
+
+## Attribution
+
+Based on [YouTube Digest by Zara Zhang](https://github.com/zarazhangrui/youtube-digest), under the MIT license.

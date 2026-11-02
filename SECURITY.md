@@ -25,12 +25,12 @@ There is no guaranteed response time or bug-bounty program. Please allow a reaso
 Examples include:
 
 - API keys or private content included in source, logs, screenshots, or release ZIPs;
-- requests to network origins outside the documented YouTube, Supadata, and DeepSeek hosts;
+- requests to network origins outside the documented YouTube, Supadata, DeepSeek, Anthropic, OpenAI, and Baidu hosts;
 - script or HTML injection through transcript, metadata, service errors, or model output;
 - access to browsing data outside the documented YouTube scope;
 - unintended transmission of notes, transcripts, or credentials;
 - a dependency or release-workflow compromise; and
-- bypasses of local data deletion or DeepSeek configuration controls.
+- bypasses of local data deletion or AI provider configuration controls.
 
 ## User security guidance
 
@@ -42,3 +42,7 @@ Examples include:
 - Remember that Chrome local extension storage is not an encrypted password vault.
 
 The release tooling uses an explicit file allowlist and scans public files for common credential patterns, but automated checks cannot detect every secret.
+
+Local video playback uses browser media decoding and temporary object URLs without additional host permissions. Filenames are rendered as text. The local player does not execute file contents as HTML or JavaScript or upload them.
+
+Baidu integration is limited to `https://pan.baidu.com/*`. It uses standard media elements without extracting credentials or bypassing access controls. Subtitle imports are limited to 2 MB / 10000 cues and all subtitle, note, title, and AI text is rendered as text rather than HTML.

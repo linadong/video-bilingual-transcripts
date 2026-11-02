@@ -13,28 +13,16 @@
 
 YouTube Digest 是一个需要自行提供 API Key 的开源项目，通过 GitHub 安装。目前没有上架 Chrome 应用商店，不赠送 API 额度，也没有开发者运营的服务器。
 
-点击查看演示和教学视频（小白友好）：[https://www.bilibili.com/video/BV1dnuq6dEak/](https://www.bilibili.com/video/BV1dnuq6dEak/)
-
-![YouTube Digest 双语演示](YouTube%20Digest%20demo%20bilingual.png)
-
-## v1.2.0 更新
-
-- 搜索字幕中的单词或短语，并依次查看所有匹配位置。
-- 在 Transcript、Overview 和 Notes 中共用 Original、中文和双语设置。新视频默认保持 Original，不会自动消耗翻译 token。
-- 只翻译当前可见的 Overview 和 Notes 内容，并通过小批次渐进显示和缓存结果。
-- 选中字幕后，可以直接讲解内容或保存带时间戳的笔记。
-- 页面跳转后保留字幕阅读位置，并在离开 YouTube 视频页面时自动关闭侧边栏。
-
 ## 让你的编程 Agent 帮你安装
 
 你不需要看懂代码，也不需要会使用命令行。把下面这段话发送给你的编程 Agent：
 
-> 请把这个项目下载或克隆到我选择的长期保留文件夹，告诉我准确的完整路径，并让 Chrome“加载已解压的扩展程序”使用同一个文件夹。如果我在第一次安装时需要位置建议，可以推荐 macOS 或 Linux 上的 `~/Documents/youtube-digest`，或 Windows 上的 `%USERPROFILE%\Documents\youtube-digest`，但不要假设我一定使用这些路径。请用简单易懂的语言一步一步指导我完成安装和配置。https://github.com/zarazhangrui/youtube-digest
+> 请把这个项目下载或克隆到我选择的长期保留文件夹，告诉我准确的完整路径，并让 Chrome“加载已解压的扩展程序”使用同一个文件夹。如果我在第一次安装时需要位置建议，可以推荐 macOS 或 Linux 上的 `~/Documents/youtube-digest`，或 Windows 上的 `%USERPROFILE%\Documents\youtube-digest`，但不要假设我一定使用这些路径。请用简单易懂的语言一步一步指导我完成安装和配置。https://github.com/linadong/video-bilingual-transcripts
 
 你的 Agent 应该帮你：
 
 1. 先询问你想把项目长期保存在哪里，再下载或克隆到那里，并告诉你准确的完整路径。如果你需要建议，可以推荐 macOS 或 Linux 上的 `~/Documents/youtube-digest`，或 Windows 上的 `%USERPROFILE%\Documents\youtube-digest`。
-2. 打开下方 Supadata 和 DeepSeek 官方页面，指导你创建自己的账号。
+2. 打开下方 Supadata 官方页面和你选择的 AI 服务（DeepSeek、Claude 或 OpenAI Codex）官方页面，指导你创建自己的账号。
 3. 指导你在 Chrome 中通过“加载已解压的扩展程序”选择你刚才确定的那个准确项目文件夹。
 4. 告诉你应该在扩展的“设置”页面哪个位置填写 API Key。
 5. 打开一个带字幕的 YouTube 视频，确认字幕和翻译功能可以使用。
@@ -47,7 +35,7 @@ YouTube Digest 是一个需要自行提供 API Key 的开源项目，通过 GitH
 
 如果你想自己操作：
 
-1. 打开 [github.com/zarazhangrui/youtube-digest](https://github.com/zarazhangrui/youtube-digest)。
+1. 打开 [github.com/linadong/video-bilingual-transcripts](https://github.com/linadong/video-bilingual-transcripts)。
 2. 点击 **Code**，再选择 **Download ZIP**。
 3. 选择一个长期保留的文件夹，并把项目解压到这里。可选建议是 macOS 或 Linux 上的 `~/Documents/youtube-digest`，或 Windows 上的 `%USERPROFILE%\Documents\youtube-digest`。你也可以使用其他文件夹。
 4. 在 Chrome 地址栏打开 `chrome://extensions`。
@@ -63,7 +51,7 @@ YouTube Digest 是一个需要自行提供 API Key 的开源项目，通过 GitH
 YouTube Digest 需要你在自己的服务账号中准备两个 Key：
 
 1. **Supadata API Key**，用于获取 YouTube 字幕。
-2. **DeepSeek API Key**，用于生成概览、讲解内容、翻译和自动润色笔记。
+2. **AI 服务 API Key**，用于生成概览、讲解内容、翻译和自动润色笔记。在设置中选择 **DeepSeek**、**Claude** 或 **OpenAI Codex**，再获取对应服务的 Key。
 
 ### 获取 Supadata API Key
 
@@ -86,16 +74,36 @@ YouTube Digest 需要你在自己的服务账号中准备两个 Key：
 
 当前账号和接口说明请查看 [DeepSeek 官方 API 文档](https://api-docs.deepseek.com/)。
 
+### 获取 Claude（Anthropic）API Key
+
+1. 打开 Anthropic 官方 [Console API Keys 页面](https://console.anthropic.com/settings/keys)。
+2. 按照提示登录，或创建 Anthropic 账号。
+3. 点击 **Create Key**，填写容易识别的名称，例如 `YouTube Digest`，然后创建 Key。
+4. 立即复制 Key。完整 Key 可能只会显示一次。
+5. 把 Key 粘贴到 YouTube Digest 设置中的 **Claude API key**。
+6. 如果 Anthropic 提示余额不足，请在 Anthropic Console 账号中充值后再试。
+
+当前账号和接口说明请查看 [Anthropic 官方 API 文档](https://docs.anthropic.com/)。
+
 在侧边栏中打开 **Settings**。你也可以在 `chrome://extensions` 的 YouTube Digest 卡片中打开扩展选项。Key 只能粘贴到这些设置输入框中。不要把 Key 发送到 AI 对话、项目文件、截图或公开消息中。
 
-发布版本只支持 DeepSeek V4 Flash：
+发布版本内置支持三个 AI 服务，可以在设置的 **AI provider** 下拉菜单中选择：
 
 ```text
-Base URL: https://api.deepseek.com
-Model: deepseek-v4-flash
+DeepSeek V4 Flash
+  Base URL: https://api.deepseek.com
+  Model: deepseek-v4-flash
+
+Claude Haiku 4.5
+  Base URL: https://api.anthropic.com
+  Model: claude-haiku-4-5-20251001
+
+OpenAI Codex (GPT-5.3-Codex)
+  Endpoint: https://api.openai.com/v1/responses
+  Model: gpt-5.3-codex
 ```
 
-YouTube Digest 会让所有 DeepSeek 请求使用非思考模式，以获得更快、更稳定的交互。设置中的接口地址和模型固定，只需要填写 DeepSeek API Key。如果想使用其他服务或模型，请在设置中复制安全的自定义 prompt，让编程 Agent 修改你自己的本地副本。不要把任何 API Key 放进 prompt 或对话。
+每个服务的接口地址和模型都固定在设置中，你只需要填写所选服务对应的 API Key；切换服务时各服务的 Key 都会保留，方便之后再切换回去。YouTube Digest 会让所有 DeepSeek 请求使用非思考模式，以获得更快、更稳定的交互；Claude 没有对应的思考模式需要关闭。如果想使用这三个服务之外的其他服务或模型，请在设置中复制安全的自定义 prompt，让编程 Agent 修改你自己的本地副本。不要把任何 API Key 放进 prompt 或对话。
 
 API Key 和设置保存在你设备上的 Chrome 扩展本地存储中。发布包不会包含或使用 `config.js`。
 
@@ -116,7 +124,7 @@ API Key 和设置保存在你设备上的 Chrome 扩展本地存储中。发布�
 - 原文、简体中文和双语对照字幕。
 - AI 概览、选中文本讲解、翻译和自动润色笔记。
 - 本地笔记，以及最近字幕、概览和翻译的本地缓存。
-- 发布版本的所有 AI 功能都使用 DeepSeek V4 Flash。其他服务需要修改本地代码，不属于发布版本的支持范围。
+- 发布版本的 AI 功能可以在设置中选择使用 DeepSeek V4 Flash、Claude Haiku 4.5 或 OpenAI Codex（GPT-5.3-Codex）。其他服务需要修改本地代码，不属于发布版本的支持范围。
 
 Shorts、直播、私密视频、受访问限制的视频，以及没有原生字幕的视频可能无法使用。目前没有测试 Firefox、Safari、移动浏览器或其他 Chromium 浏览器。
 
@@ -134,26 +142,27 @@ YouTube Digest 强制使用 Supadata 的 `mode=native`，不会在没有原生�
 
 按照当前只获取原生字幕的方式，如果每次请求都成功，免费版每月大约可以查询 100 个视频。重试和没有字幕的查询也会消耗额度，所以实际成功数量可能更少。
 
-DeepSeek 的额度与 Supadata 分开计算。YouTube Digest 不收款，也不转售 API 服务。建议为两个账号设置消费上限并定期查看用量。
+AI 服务的额度与 Supadata 分开计算。DeepSeek、Anthropic 和 OpenAI 各自可能有自己的免费额度、限速或费用。YouTube Digest 不收款，也不转售 API 服务。建议为两个账号设置消费上限并定期查看用量。下方估算说明了当前 DeepSeek 翻译成本；Claude 的价格说明见后文。
 
-## DeepSeek V4 Flash 价格
+## DeepSeek V4 Flash 翻译成本估算
 
-截至 2026 年 8 月 27 日，DeepSeek 官方[价格页面](https://api-docs.deepseek.com/quick_start/pricing/)列出的每 100 万 token 美元价格如下：
+截至 2026 年 8 月 10 日，DeepSeek 官方[价格页面](https://api-docs.deepseek.com/quick_start/pricing/)列出的每 100 万 token 价格是：
 
-| Token 类型 | 非高峰 | 高峰 |
-| --- | ---: | ---: |
-| 缓存命中输入 | $0.007 | $0.014 |
-| 缓存未命中输入 | $0.22 | $0.44 |
-| 输出 | $0.66 | $1.32 |
+- 缓存命中输入：**¥0.02**。
+- 缓存未命中输入：**¥1**。
+- 输出：**¥2**。
 
-高峰时段为周一至周五 UTC 01:00–04:00 和 06:00–10:00，其他时间使用非高峰价格。
+DeepSeek 说明这些价格可能很快上调，因此使用此估算前必须查看当前价格页面。官方 [token 用量指南](https://api-docs.deepseek.com/quick_start/token_usage/)估算每个英文字符约为 0.3 token，每个中文字符约为 0.6 token。[上下文缓存指南](https://api-docs.deepseek.com/guides/kv_cache/)说明了重复前缀使用的自动尽力而为磁盘缓存。
 
-一个实测的 20 分钟英文视频使用约 **32,600 个输入 token**，并在 43 个小批次中产生约 **3,500 到 4,500 个输出 token**。按当前价格，完整翻译该视频的费用约为：
+一个实测的 20 分钟英文演讲包含 **2,935 个英文口语词**和 15,433 个字幕字符。按 YouTube Digest 当前的分组方式，它会变成 128 个语义分段，以每次 3 段的方式发出 43 次请求。算上重复 prompt 和 JSON 后，渲染后的输入约为 108,528 个英文字符，按官方每个英文字符 0.3 token 的经验值，即**约 32,600 个输入 token**。按每个中文字符 0.6 token 的经验值，再加上 JSON 和 ID 开销，中文 JSON 输出估计为 3,500 到 4,500 token。
 
-- **非高峰：$0.003 到 $0.010 USD**。
-- **高峰：$0.005 到 $0.020 USD**。
+如果所有输入都按缓存未命中计费，输入约 $0.0046，输出约 $0.0010 到 $0.0013，总计约 $0.0056 到 $0.0059。当大量重复的 system prompt 命中 DeepSeek 自动尽力而为缓存时，更现实的低值约为 $0.002 到 $0.003。完整翻译这段演讲的实用估算是 **$0.002 到 $0.006 USD，约 ¥0.02 到 ¥0.04**。
 
-低值假设大部分重复输入命中 DeepSeek 缓存，高值假设输入未命中缓存。翻译按需执行并复用缓存，只翻译部分视频时费用会更低。使用前请查看官方页面确认最新价格。
+翻译是延迟按需和渐进式的。已缓存的分段会复用，只有滚动到并请求的字幕行才会发起调用。重试、服务商行为和价格变化都可能增加最终成本。
+
+## Claude Haiku 4.5 价格说明
+
+YouTube Digest 还没有对 Claude 做过和 DeepSeek 一样的实测基准，所以在高频使用 Claude 前，请查看 Anthropic 官方[价格页面](https://www.anthropic.com/pricing)了解当前的 token 单价。Anthropic 对输入和输出 token 分开计费，也有自己的 prompt 缓存折扣；请求模式（每个视频拆成很多次小的翻译请求）和上面 DeepSeek 的实测一致，所以每个视频的请求次数预计相近，只是单价不同。
 
 ## 用编程 Agent 改造成自己的版本
 
@@ -178,11 +187,11 @@ YouTube Digest 使用原生 HTML、CSS 和 JavaScript，没有构建步骤，很
 YouTube Digest 会直接从扩展向服务商发送请求：
 
 1. 把标准化的 YouTube 视频地址发送给 Supadata，用于获取原生字幕。
-2. 当你使用 AI 功能时，把字幕和相关视频信息发送给 DeepSeek。
+2. 当你使用 AI 功能时，把字幕和相关视频信息发送给你选择的 AI 服务（DeepSeek、Claude 或 OpenAI Codex）。
 3. 翻译或讲解等功能只发送当前需要的内容，例如选中的文本和上下文，或少量字幕分段。
 4. API Key、设置、笔记和最近缓存保存在 Chrome 本地。
 
-YouTube Digest 没有账号系统、广告、分析统计或行为追踪。Supadata 和 DeepSeek 仍会按照各自的条款和隐私政策处理数据。详情请查看 [PRIVACY.md](PRIVACY.md)。
+YouTube Digest 没有账号系统、广告、分析统计或行为追踪。Supadata 和你选择的 AI 服务仍会按照各自的条款和隐私政策处理数据。详情请查看 [PRIVACY.md](PRIVACY.md)。
 
 ## 常见问题
 
@@ -203,8 +212,8 @@ YouTube Digest 没有账号系统、广告、分析统计或行为追踪。Supad
 
 ### YouTube Digest 提示需要设置
 
-- 打开 **Settings**，保存 Supadata Key 和 DeepSeek Key。
-- 发布版本固定使用 DeepSeek V4 Flash，没有需要填写的 Base URL 或 Model 字段。
+- 打开 **Settings**，保存 Supadata Key 和你选择的 AI 服务的 Key。
+- 发布版本按服务固定使用对应的接口地址和模型：DeepSeek V4 Flash、Claude Haiku 4.5 或 OpenAI Codex（GPT-5.3-Codex），没有需要填写的 Base URL 或 Model 字段。
 - 如果设置提示旧的自定义服务已移除，请重新填写 DeepSeek Key。旧 AI Key 已安全清除，避免被错误用于 DeepSeek。
 
 ### 找不到字幕
@@ -217,9 +226,9 @@ YouTube Digest 不会自动改用 AI 生成字幕。
 
 ### AI 请求失败
 
-- `401` 或 `403` 通常表示 DeepSeek Key 或账号权限有问题。
-- `429` 通常表示达到了 DeepSeek 服务限速或消费上限。
-- 确认 Key 来自上方链接的 DeepSeek 开放平台账号，并且账号有可用额度。
+- `401` 或 `403` 通常表示 AI 服务的 Key 或账号权限有问题。
+- `429` 通常表示达到了 AI 服务的限速或消费上限。
+- 确认 Key 来自正确的账号（DeepSeek 开放平台或 Anthropic Console，需与设置中选择的服务一致），并且账号有可用额度。
 - 如果你把本地副本改成了其他模型，请再次使用设置中的自定义 prompt，让编程 Agent 检查本地实现。
 
 不要在对话、截图或日志中分享 API Key、私密字幕或个人笔记。
@@ -239,3 +248,27 @@ Agent 还应该在 Chrome 中重新加载扩展，并测试多个真实 YouTube 
 ## 开源许可
 
 MIT，详见 [LICENSE](LICENSE)。
+
+## 使用 OpenAI Codex
+
+在 `chrome://extensions` 重新加载已解压的扩展，打开设置，选择 **OpenAI Codex (GPT-5.3-Codex)**，填写自己的 [OpenAI API 密钥](https://platform.openai.com/api-keys) 并保存。字幕仍需要 Supadata 密钥。API 用量与 ChatGPT 订阅分开计费，不会复用 IDE 登录状态；API 项目需要具有 [GPT-5.3-Codex](https://developers.openai.com/api/docs/models/gpt-5.3-codex) 访问权限。
+
+概览、解释、翻译和笔记润色均使用所选服务。已有缓存会保留，如需用 Codex 重新生成，请先在设置中清除缓存摘要。打开真实 YouTube 视频，依次验证这四项功能。Codex 使用 Responses API、低推理强度及 `store: false`；输出不完整或被拒绝时会显示错误。
+
+## 本地视频播放
+
+从设置页或侧栏点击 **本地视频**，在独立页面选择或拖入一个本地视频。支持播放、暂停、音量、进度跳转、全屏、倍速及前后跳转 10 秒。无需 API 密钥、Supadata 或网络连接，视频不会上传。推荐 MP4（H.264/AAC）或 WebM；其他格式取决于浏览器编码支持。本地页面仅提供播放，不包含 AI 分析或字幕转录。重新打开页面后需再次选择文件。
+
+## 百度网盘适配预览版
+
+更新后刷新 `pan.baidu.com` 播放页，先开始播放，再点击扩展图标。侧栏会切换到百度网盘学习助手。支持带 fid/fsid 或文件路径参数的播放页。只读取页面可访问的标准 video 播放器；嵌入框架、非标准播放器和画面内烧录字幕不保证可用。此版本尚未在登录后的百度网盘中实测。
+
+开启网盘字幕后点击“读取页面字幕”；读不到时导入对应的 UTF-8 SRT/VTT。选择字幕可翻译或解释，摘要使用全部已载入字幕（最多 120000 字符），点击时间可跳转。AI 使用设置中的服务，不需要 Supadata。笔记手动填写并关联当前时间，每个文件最多 100 条，仅保存在当前浏览器，可单条删除或在设置中重置扩展数据。字幕和 AI 结果不会持久化，关闭侧栏后需重新导入。
+
+### v1.3.1 来源切换修复
+
+本地播放器使用独立侧栏提示，不显示 YouTube 的旧字幕。本地模式尚不支持字幕导入或语音转录。YouTube 侧栏只使用当前窗口的活动标签页，不会自动回退到其他 YouTube 标签页。更新后重新加载扩展，并刷新本地播放器页面。
+
+## 致谢
+
+本项目基于 [Zara Zhang 的 YouTube Digest](https://github.com/zarazhangrui/youtube-digest)，遵循 MIT 许可证。

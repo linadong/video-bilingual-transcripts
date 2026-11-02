@@ -72,22 +72,30 @@ async function loadPromptSection(fileName, heading, variables = {}) {
   return prompt;
 }
 
-async function requestAiCompletion({
-  messages,
+// Every provider's request shape, retry behavior, and
+// error parsing lives in its own pair of functions below, so adding or
+// changing one provider cannot leak into another's behavior.
+
+const AI_PROVIDER_LABELS = {
+  deepseek: "DeepSeek",
+  claude: "Claude",
+  codex: "OpenAI Codex",
+};
+
+function providerLabel(providerId) {
+  return AI_PROVIDER_LABELS[providerId] || "AI provider";
+}
+
+function buildDeepSeekRequest({
+  apiKey,
+  model,
   maxTokens,
   temperature,
   responseFormat,
+  messages,
 }) {
-  const settings = await getSettings();
-  if (!settings.aiApiKey) {
-    const error = new Error(
-      "DeepSeek API key not configured. Open YouTube Digest Settings.",
-    );
-    error.code = "NO_AI_KEY";
-    throw error;
-  }
   const body = {
-    model: settings.aiModel,
+    model,
     max_tokens: maxTokens,
     messages,
   };
@@ -97,6 +105,168 @@ async function requestAiCompletion({
   }
   // Product features need bounded, predictable latency rather than reasoning traces.
   body.thinking = { type: "disabled" };
+
+  return {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body,
+  };
+}
+
+function parseDeepSeekResponseText(data) {
+  return data.choices?.[0]?.message?.content;
+}
+
+function parseDeepSeekErrorMessage(data, status) {
+  const errorData = data && typeof data === "object" ? data : {};
+  return (
+    errorData.error?.message ||
+    errorData.message ||
+    `DeepSeek error: ${status}`
+  );
+}
+
+function buildClaudeRequest({ apiKey, model, maxTokens, temperature, messages }) {
+  // Claude's Messages API only accepts "user"/"assistant" roles in the
+  // messages array; the system prompt is a separate top-level field.
+  const systemPrompt = messages
+    .filter((message) => message.role === "system")
+    .map((message) => message.content)
+    .join("\n\n");
+  const conversationMessages = messages
+    .filter((message) => message.role !== "system")
+    .map((message) => ({ role: message.role, content: message.content }));
+
+  const body = {
+    model,
+    max_tokens: maxTokens,
+    messages: conversationMessages,
+  };
+  if (systemPrompt) body.system = systemPrompt;
+  if (typeof temperature === "number") body.temperature = temperature;
+  // Claude has no OpenAI-style response_format JSON mode. Every prompt that
+  // needs JSON already asks for it directly (see prompts/analysis.md's
+  // "Output JSON" instruction), which is the same fallback DeepSeek uses
+  // when it retries without response_format, so no extra handling is needed.
+
+  return {
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      // Anthropic's API blocks direct browser/extension-origin requests
+      // unless this header opts in.
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body,
+  };
+}
+
+function parseClaudeResponseText(data) {
+  const blocks = Array.isArray(data.content) ? data.content : [];
+  return blocks
+    .filter((block) => block?.type === "text" && typeof block.text === "string")
+    .map((block) => block.text)
+    .join("");
+}
+
+function parseClaudeErrorMessage(data, status) {
+  const errorData = data && typeof data === "object" ? data : {};
+  return errorData.error?.message || `Claude error: ${status}`;
+}
+
+function buildCodexRequest({ apiKey, model, maxTokens, messages, responseFormat }) {
+  const body = {
+    model,
+    input: messages,
+    // Responses counts reasoning tokens within the output budget.
+    max_output_tokens: maxTokens + 4096,
+    reasoning: { effort: "low" },
+    store: false,
+  };
+  if (responseFormat) body.text = { format: responseFormat };
+  return {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body,
+  };
+}
+
+function parseCodexResponseText(data) {
+  if (data.status === "incomplete") {
+    throw new Error(`OpenAI Codex response incomplete: ${data.incomplete_details?.reason || "output limit reached"}. Please retry.`);
+  }
+  if (data.error || data.status === "failed") {
+    throw new Error(parseCodexErrorMessage(data, "failed"));
+  }
+  const output = Array.isArray(data.output) ? data.output : [];
+  const blocks = output
+    .filter((item) => item?.type === "message" && item.role === "assistant")
+    .flatMap((item) => Array.isArray(item.content) ? item.content : []);
+  if (blocks.some((block) => block?.type === "refusal")) {
+    throw new Error("OpenAI Codex declined this request.");
+  }
+  return blocks
+    .filter((block) => block?.type === "output_text" && typeof block.text === "string")
+    .map((block) => block.text)
+    .join("");
+}
+
+function parseCodexErrorMessage(data, status) {
+  return data?.error?.message || `OpenAI Codex error: ${status}`;
+}
+
+const AI_PROVIDER_ADAPTERS = {
+  codex: {
+    buildRequest: buildCodexRequest,
+    parseResponseText: parseCodexResponseText,
+    parseErrorMessage: parseCodexErrorMessage,
+  },
+  deepseek: {
+    buildRequest: buildDeepSeekRequest,
+    parseResponseText: parseDeepSeekResponseText,
+    parseErrorMessage: parseDeepSeekErrorMessage,
+  },
+  claude: {
+    buildRequest: buildClaudeRequest,
+    parseResponseText: parseClaudeResponseText,
+    parseErrorMessage: parseClaudeErrorMessage,
+  },
+};
+
+async function requestAiCompletion({
+  messages,
+  maxTokens,
+  temperature,
+  responseFormat,
+}) {
+  const settings = await getSettings();
+  const provider = AI_PROVIDER_ADAPTERS[settings.provider]
+    ? settings.provider
+    : YTD_SETTINGS.DEFAULT_PROVIDER;
+  const label = providerLabel(provider);
+  const adapter = AI_PROVIDER_ADAPTERS[provider];
+
+  if (!settings.aiApiKey) {
+    const error = new Error(
+      `${label} API key not configured. Open YouTube Digest Settings.`,
+    );
+    error.code = "NO_AI_KEY";
+    throw error;
+  }
+
+  const { headers, body } = adapter.buildRequest({
+    apiKey: settings.aiApiKey,
+    model: settings.aiModel,
+    maxTokens,
+    temperature,
+    responseFormat,
+    messages,
+  });
 
   const controller = new AbortController();
   let timeoutKind = "";
@@ -121,37 +291,36 @@ async function requestAiCompletion({
   );
   resetIdleTimeout();
   try {
-    const response = await fetch(
-      YTD_SETTINGS.chatCompletionsUrl(),
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${settings.aiApiKey}`,
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      },
-    );
-    // Receiving headers proves DeepSeek is still making progress. DeepSeek
-    // may then send blank-line body chunks while a non-streaming request queues.
+    const response = await fetch(YTD_SETTINGS.aiEndpointUrl(provider), {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    // Receiving headers proves the provider is still making progress. Some
+    // providers may then send blank-line body chunks while a non-streaming
+    // request queues.
     resetIdleTimeout();
 
-    const data = await readBoundedAiResponse(response, resetIdleTimeout);
+    const data = await readBoundedAiResponse(response, resetIdleTimeout, label);
     if (!response.ok) {
-      const errorData = data && typeof data === "object" ? data : {};
-      const error = new Error(
-        errorData.error?.message ||
-          errorData.message ||
-          `DeepSeek error: ${response.status}`,
-      );
+      const error = new Error(adapter.parseErrorMessage(data, response.status));
       error.status = response.status;
+      if (response.status === 429) {
+        const quotaExceeded = provider === "codex" &&
+          [data?.error?.code, data?.error?.type].some((code) =>
+            ["insufficient_quota", "billing_hard_limit_reached"].includes(code));
+        error.code = quotaExceeded ? "AI_QUOTA_EXCEEDED" : "RATE_LIMITED";
+        error.message = quotaExceeded
+          ? "OpenAI API 额度不足，请检查 API 余额和用量限制；ChatGPT 订阅不包含 API 额度。"
+          : `${label}: ${error.message} 请稍后重试 / Please retry later.`;
+      }
       throw error;
     }
 
-    const text = data.choices?.[0]?.message?.content;
+    const text = adapter.parseResponseText(data);
     if (typeof text !== "string" || !text.trim()) {
-      const error = new Error("DeepSeek returned an empty response.");
+      const error = new Error(`${label} returned an empty response.`);
       error.code = "EMPTY_AI_RESPONSE";
       throw error;
     }
@@ -160,14 +329,14 @@ async function requestAiCompletion({
   } catch (error) {
     if (timeoutKind === "idle") {
       const timeoutError = new Error(
-        "DeepSeek request was inactive for 50 seconds. Please Retry.",
+        `${label} request was inactive for 50 seconds. Please Retry.`,
       );
       timeoutError.code = "AI_IDLE_TIMEOUT";
       throw timeoutError;
     }
     if (timeoutKind === "hard") {
       const timeoutError = new Error(
-        "DeepSeek request exceeded the 120-second limit. Please Retry.",
+        `${label} request exceeded the 120-second limit. Please Retry.`,
       );
       timeoutError.code = "AI_HARD_TIMEOUT";
       throw timeoutError;
@@ -179,7 +348,7 @@ async function requestAiCompletion({
   }
 }
 
-async function readBoundedAiResponse(response, onActivity) {
+async function readBoundedAiResponse(response, onActivity, label = "AI provider") {
   const reader = response.body?.getReader?.();
   if (reader) {
     const decoder = new TextDecoder();
@@ -188,13 +357,13 @@ async function readBoundedAiResponse(response, onActivity) {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      // Every received chunk is activity, including DeepSeek's blank lines.
+      // Every received chunk is activity, including a provider's blank lines.
       onActivity();
       const byteLength = value?.byteLength ?? 0;
       responseBytes += byteLength;
       if (responseBytes > AI_PROVIDER_MAX_RESPONSE_BYTES) {
         await reader.cancel?.().catch(() => {});
-        const error = new Error("DeepSeek response exceeded the 2 MiB limit.");
+        const error = new Error(`${label} response exceeded the 2 MiB limit.`);
         error.code = "AI_RESPONSE_TOO_LARGE";
         throw error;
       }
@@ -211,7 +380,7 @@ async function readBoundedAiResponse(response, onActivity) {
     onActivity();
     const byteLength = new TextEncoder().encode(responseText).byteLength;
     if (byteLength > AI_PROVIDER_MAX_RESPONSE_BYTES) {
-      const error = new Error("DeepSeek response exceeded the 2 MiB limit.");
+      const error = new Error(`${label} response exceeded the 2 MiB limit.`);
       error.code = "AI_RESPONSE_TOO_LARGE";
       throw error;
     }
@@ -234,15 +403,10 @@ async function readBoundedAiResponse(response, onActivity) {
  * Chrome's Side Panel API lets us show a persistent panel alongside the page.
  */
 chrome.action.onClicked.addListener((tab) => {
-  if (!(tab.url || "").startsWith("https://www.youtube.com")) {
-    void updatePanelForTab(tab.id, tab.url, tab.windowId);
-    return;
-  }
-
   // Re-enable + open without awaiting — preserves user gesture context
   chrome.sidePanel.setOptions({
     tabId: tab.id,
-    path: "sidepanel.html",
+    path: YTD_SETTINGS.panelPageForUrl(tab.url, chrome.runtime.getURL("local-player.html")) || "sidepanel.html",
     enabled: true,
   });
   chrome.sidePanel.open({ tabId: tab.id });
@@ -258,7 +422,7 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
 });
 
 /**
- * Keep the side panel scoped to YouTube tabs only.
+ * Keep the side panel scoped to YouTube and Baidu video workflows.
  *
  * Chrome side panels are "global" by default: once opened, the panel follows
  * you to every tab. To make YouTube Digest behave like a YouTube-only tool, we
@@ -272,68 +436,24 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
  * The original code only handled onUpdated, which is why the panel stayed
  * visible when switching to an already-loaded non-YouTube tab.
  */
-async function closePanelForTab(tabId, windowId) {
-  // Chrome 141 added an explicit close API. On older supported versions,
-  // disabling the tab-specific panel below remains the compatibility path.
-  if (typeof chrome.sidePanel.close !== "function") return;
-
-  try {
-    // This closes the tab-specific panel used by YouTube Digest.
-    await chrome.sidePanel.close({ tabId });
-    return;
-  } catch (error) {
-    // Chrome 145+ rejects tabId when the visible instance is global. Close
-    // that instance by window instead.
-  }
-
-  if (Number.isInteger(windowId)) {
-    await chrome.sidePanel.close({ windowId }).catch(() => {});
-  }
-}
-
-async function updatePanelForTab(tabId, url, windowId) {
-  const isYouTube = (url || "").startsWith("https://www.youtube.com");
-  if (!isYouTube) {
-    // Close the visible instance first. Then disable this tab so Chrome cannot
-    // reopen the global default panel as navigation settles.
-    await closePanelForTab(tabId, windowId);
-    await chrome.sidePanel.setOptions({ tabId, enabled: false }).catch(() => {});
-    return;
-  }
-
-  // setOptions can reject if the tab just closed. Ignore that harmlessly.
-  await chrome.sidePanel
-    .setOptions({ tabId, path: "sidepanel.html", enabled: true })
+function updatePanelForTab(tabId, url) {
+  const path = YTD_SETTINGS.panelPageForUrl(url, chrome.runtime.getURL("local-player.html"));
+  chrome.sidePanel
+    .setOptions({ tabId, path: path || "sidepanel.html", enabled: !!path })
     .catch(() => {});
 }
 
-/**
- * Gets the best URL from a tab update that can change panel availability.
- * Chrome can apply tab-specific side-panel state before a navigation commits,
- * then reset it during the commit. Handling loading and complete gives the
- * first non-YouTube navigation a reliable second reconciliation.
- */
-function getNavigationUrl(changeInfo, tab) {
-  if (changeInfo.url) return changeInfo.url;
-  if (changeInfo.status !== "loading" && changeInfo.status !== "complete") {
-    return "";
-  }
-  return tab.pendingUrl || tab.url || "";
-}
-
-// A tab started or completed navigation. Reconcile at both stages because
-// Chrome can replace per-tab side-panel options while the page commits.
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  const url = getNavigationUrl(changeInfo, tab);
-  if (!url) return; // Ignore title and favicon-only updates.
-  void updatePanelForTab(tabId, url, tab.windowId);
+// A tab navigated to a new URL.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (!changeInfo.url) return; // ignore title/favicon-only updates
+  updatePanelForTab(tabId, changeInfo.url);
 });
 
 // The user switched to a different tab (or opened a new one).
-chrome.tabs.onActivated.addListener(async ({ tabId, windowId }) => {
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
   try {
     const tab = await chrome.tabs.get(tabId);
-    void updatePanelForTab(tabId, tab.url || tab.pendingUrl, windowId);
+    updatePanelForTab(tabId, tab.url);
   } catch (e) {
     // Tab vanished before we could read it — nothing to do.
   }
@@ -383,14 +503,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.action === "saveNote") {
-    // Save a note at the current timestamp, or save exact selected transcript
-    // text when the side panel supplies it.
+    // Save a note at the current timestamp
     handleSaveNote(
       message.videoId,
       message.timestamp,
       message.videoTitle,
       message.channelName,
-      message.selectedText,
     )
       .then(sendResponse)
       .catch((err) => sendResponse({ success: false, error: err.message }));
@@ -520,20 +638,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           tabs[0]?.url,
         );
 
-        // If no YouTube tab found, try broader query
-        if (!tabs[0] || !tabs[0].url?.includes("youtube.com")) {
-          tabs = await chrome.tabs.query({
-            url: "https://www.youtube.com/*",
-            active: true,
-          });
-          debugLog("[YouTube Digest BG] Active YouTube tabs:", tabs.length);
-        }
-
-        // Still nothing? Try any YouTube tab
-        if (!tabs[0]) {
-          tabs = await chrome.tabs.query({ url: "https://www.youtube.com/*" });
-          debugLog("[YouTube Digest BG] Any YouTube tabs:", tabs.length);
-        }
+        // Never relay into a different video when the active tab is local or Baidu.
+        if (!tabs[0]?.url?.startsWith("https://www.youtube.com/")) tabs = [];
 
         if (tabs[0]) {
           debugLog(
@@ -894,11 +1000,11 @@ function parseLooseJson(text) {
 }
 
 // ============================================================
-// DEEPSEEK ANALYSIS
+// AI ANALYSIS
 // ============================================================
 
 /**
- * Sends the transcript to DeepSeek for analysis.
+ * Sends the transcript to the configured AI provider for analysis.
  *
  * The prompt asks the model to produce chapters covering the whole video
  * and 3-5 key quotes with timestamps.
@@ -915,13 +1021,14 @@ async function handleAnalyzeTranscript(
   videoDescription,
   videoDuration,
 ) {
+  let settings;
   try {
-    const settings = await getSettings();
+    settings = await getSettings();
     if (!settings.aiApiKey) {
       return {
         success: false,
         error: "NO_AI_KEY",
-        message: "DeepSeek API key not configured. Open YouTube Digest Settings.",
+        message: `${providerLabel(settings.provider)} API key not configured. Open YouTube Digest Settings.`,
       };
     }
 
@@ -1002,14 +1109,14 @@ async function handleAnalyzeTranscript(
       return {
         success: false,
         error: "INVALID_AI_KEY",
-        message: "DeepSeek rejected the API key.",
+        message: `${providerLabel(settings?.provider)} rejected the API key.`,
       };
     }
     if (error.status === 429) {
       return {
         success: false,
-        error: "RATE_LIMITED",
-        message: "DeepSeek rate-limited this request. Try again shortly.",
+        error: error.code || "RATE_LIMITED",
+        message: error.message,
       };
     }
     return {
@@ -1023,7 +1130,7 @@ async function handleAnalyzeTranscript(
  * Validates all timestamps in the analysis and fixes any that exceed video duration.
  * This is a safety net to prevent hallucinated timestamps from reaching the UI.
  *
- * @param {Object} analysis - The parsed analysis from DeepSeek
+ * @param {Object} analysis - The parsed analysis from the AI provider
  * @param {number} maxSeconds - Maximum valid timestamp in seconds
  * @returns {Object} - Analysis with validated timestamps
  */
@@ -1117,7 +1224,7 @@ async function handleGetVideoInfo(tabId) {
 // ============================================================
 
 /**
- * Explains selected text using DeepSeek.
+ * Explains selected text using the configured AI provider.
  * Provides context, definitions, and clarification for complex terms.
  *
  * @param {string} selectedText - The text the user selected
@@ -1130,50 +1237,18 @@ async function handleGetVideoInfo(tabId) {
 // ============================================================
 
 /**
- * Saves a note at a timestamp. Exact selected text is stored directly.
- * Other note requests find the relevant transcript line and clean it up.
+ * Saves a note at the current timestamp.
+ * Fetches the transcript if needed, finds the relevant line, and cleans it up.
  */
 async function handleSaveNote(
   videoId,
   timestamp,
   videoTitle,
   channelName,
-  selectedText,
 ) {
   try {
     const canonicalVideoUrl = YTD_SETTINGS.canonicalYouTubeUrl(videoId);
     const safeTimestamp = Math.max(0, Math.floor(Number(timestamp) || 0));
-    const exactSelectedText =
-      typeof selectedText === "string"
-        ? selectedText.replace(/\s+/g, " ").trim().slice(0, 3000)
-        : "";
-
-    // A selected transcript note is already the exact text the user wants.
-    // Save it directly without a transcript fetch or an AI cleanup request.
-    if (exactSelectedText) {
-      const minutes = Math.floor(safeTimestamp / 60);
-      const seconds = safeTimestamp % 60;
-      const note = {
-        id: `note_${Date.now()}`,
-        videoId,
-        videoTitle:
-          typeof videoTitle === "string"
-            ? videoTitle.slice(0, 500)
-            : "Untitled Video",
-        channelName:
-          typeof channelName === "string" ? channelName.slice(0, 300) : "",
-        timestamp: `${minutes}:${String(seconds).padStart(2, "0")}`,
-        timestampSeconds: safeTimestamp,
-        timestampedUrl: `${canonicalVideoUrl}&t=${safeTimestamp}s`,
-        text: exactSelectedText,
-        rawText: exactSelectedText,
-        createdAt: Date.now(),
-      };
-
-      await saveNoteToStorage(note);
-      chrome.runtime.sendMessage({ action: "noteSaved", note }).catch(() => {});
-      return { success: true, note };
-    }
 
     // First, try to get the transcript from the digest cache. The side panel
     // saves digests to chrome.storage.LOCAL — this used to look in
@@ -1453,7 +1528,7 @@ async function handleExplainSelection(
       return {
         success: false,
         error: "NO_AI_KEY",
-        message: "DeepSeek API key not configured.",
+        message: `${providerLabel(settings.provider)} API key not configured.`,
       };
     }
 
@@ -1592,9 +1667,9 @@ function normalizeTranslatedSegmentBatch(parsed, sourceSegments) {
 }
 
 /**
- * Translates content using DeepSeek.
+ * Translates content using the configured AI provider.
  * @param {Object} content - JSON object containing semantic transcript segments
- * @param {string} contentType - 'transcriptBatch' or 'interfaceBatch'
+ * @param {string} contentType - Must be 'transcriptBatch'
  * @param {string} targetLanguage - 'zh' for Simplified Chinese
  * @param {string} videoTitle - The video title (for context)
  * @returns {Object} - { success, translatedContent } or { success: false, error }
@@ -1612,7 +1687,7 @@ async function handleTranslateContent(
         error: `Unsupported translation target: ${String(targetLanguage)}`,
       };
     }
-    if (!["transcriptBatch", "interfaceBatch"].includes(contentType)) {
+    if (contentType !== "transcriptBatch") {
       return {
         success: false,
         error: `Unsupported translation content type: ${String(contentType)}`,
@@ -1621,19 +1696,18 @@ async function handleTranslateContent(
 
     const settings = await getSettings();
     if (!settings.aiApiKey) {
-      return { success: false, error: "DeepSeek API key not configured" };
+      return {
+        success: false,
+        error: `${providerLabel(settings.provider)} API key not configured`,
+      };
     }
 
     const sourceSegments = validateTranscriptBatchRequest(content);
     const langName = "Simplified Chinese";
     const baseRules = await getTranslationBaseRules(targetLanguage);
-    const promptSection =
-      contentType === "transcriptBatch"
-        ? "Transcript batch translation"
-        : "Interface content translation";
     const systemPrompt = await loadPromptSection(
       "translation.md",
-      promptSection,
+      "Transcript batch translation",
       {
         langName,
         videoTitle: videoTitle || "Unknown",
@@ -1706,8 +1780,8 @@ async function callAiTranslation(
     if (error.status === 429) {
       return {
         success: false,
-        error: "Rate limited — try again in a moment",
-        code: "RATE_LIMITED",
+        error: error.message,
+        code: error.code || "RATE_LIMITED",
       };
     }
     return { success: false, error: error.message, code: error.code };
@@ -1720,8 +1794,5 @@ globalThis.__YTD_TRANSLATION_TESTING__ = {
   callAiTranslation,
   validateTranscriptBatchRequest,
   normalizeTranslatedSegmentBatch,
-  handleSaveNote,
   handleTranslateContent,
-  closePanelForTab,
-  updatePanelForTab,
 };

@@ -32,6 +32,23 @@ public_allowlist=(
   "sidepanel.html"
   "sidepanel.css"
   "sidepanel.js"
+  "local-player.html"
+  "local-panel.html"
+  "local-player.css"
+  "local-player.js"
+  "local-asr.js"
+  "asr-utils.js"
+  "asr-worker.mjs"
+  "vendor/transformers/transformers.mjs"
+  "vendor/transformers/ort-wasm-simd-threaded.jsep.mjs"
+  "vendor/transformers/ort-wasm-simd-threaded.jsep.wasm"
+  "vendor/transformers/LICENSE.txt"
+  "vendor/transformers/ONNX-LICENSE.txt"
+  "baidu-content.js"
+  "baidu-panel.html"
+  "baidu-panel.css"
+  "baidu-panel.js"
+  "subtitles.js"
   "options.html"
   "options.css"
   "options.js"
@@ -57,6 +74,23 @@ required_public_files=(
   "sidepanel.html"
   "sidepanel.css"
   "sidepanel.js"
+  "local-player.html"
+  "local-panel.html"
+  "local-player.css"
+  "local-player.js"
+  "local-asr.js"
+  "asr-utils.js"
+  "asr-worker.mjs"
+  "vendor/transformers/transformers.mjs"
+  "vendor/transformers/ort-wasm-simd-threaded.jsep.mjs"
+  "vendor/transformers/ort-wasm-simd-threaded.jsep.wasm"
+  "vendor/transformers/LICENSE.txt"
+  "vendor/transformers/ONNX-LICENSE.txt"
+  "baidu-content.js"
+  "baidu-panel.html"
+  "baidu-panel.css"
+  "baidu-panel.js"
+  "subtitles.js"
   "icons/icon16.png"
   "icons/icon48.png"
   "icons/icon128.png"
@@ -217,7 +251,7 @@ NODE
 
 javascript_files=()
 for file in "${release_files[@]}"; do
-  if [[ "$file" == *.js ]]; then
+  if [[ "$file" == *.js || "$file" == *.mjs ]]; then
     javascript_files+=("$file")
   fi
 done

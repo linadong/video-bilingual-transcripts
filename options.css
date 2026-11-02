@@ -189,6 +189,21 @@ a {
   font-weight: 800;
 }
 
+.provider-select {
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+  font-weight: 800;
+}
+
+.provider-select:focus {
+  border-color: var(--accent);
+  outline: 3px solid rgba(200, 103, 79, 0.14);
+}
+
 .provider-badge,
 .agent-badge {
   padding: 4px 9px;

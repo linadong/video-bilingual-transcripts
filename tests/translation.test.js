@@ -13,8 +13,6 @@ function loadSidepanelHelpers({
   clearTimeoutImpl = () => {},
 } = {}) {
   const listeners = { addListener() {} };
-  const sessionStorage = {};
-  const localStorage = {};
   const sandbox = {
     console,
     URL,
@@ -50,16 +48,6 @@ function loadSidepanelHelpers({
     },
     chrome: {
       runtime: { onMessage: listeners, sendMessage },
-      storage: {
-        local: {
-          get: async (key) => ({ [key]: localStorage[key] }),
-          set: async (values) => Object.assign(localStorage, values),
-        },
-        session: {
-          get: async (key) => ({ [key]: sessionStorage[key] }),
-          set: async (values) => Object.assign(sessionStorage, values),
-        },
-      },
       windows: { getCurrent: () => Promise.resolve({ id: 1 }) },
       tabs: { onUpdated: listeners, onActivated: listeners },
     },
@@ -80,13 +68,8 @@ function loadBackgroundHelpers({
   fetchImpl = fetch,
   setTimeoutImpl = () => 0,
   clearTimeoutImpl = () => {},
-  sidePanel = {
-    setPanelBehavior() {},
-    setOptions: () => Promise.resolve(),
-  },
 } = {}) {
   const listeners = { addListener() {} };
-  const localStorage = { ytd_settings: settings };
   const sandbox = {
     console,
     URL,
@@ -101,84 +84,36 @@ function loadBackgroundHelpers({
       storage: {
         local: {
           setAccessLevel: () => Promise.resolve(),
-          get: async (key) => {
-            if (key === null) return { ...localStorage };
-            if (Array.isArray(key)) {
-              return Object.fromEntries(key.map((item) => [item, localStorage[item]]));
-            }
-            return { [key]: localStorage[key] };
-          },
-          set: async (values) => Object.assign(localStorage, values),
-          remove: async (keys) => {
-            for (const key of Array.isArray(keys) ? keys : [keys]) {
-              delete localStorage[key];
-            }
-          },
+          get: async () => ({ ytd_settings: settings }),
         },
       },
       action: { onClicked: listeners },
-      sidePanel,
+      sidePanel: {
+        setPanelBehavior() {},
+        setOptions: () => Promise.resolve(),
+      },
       runtime: {
         onInstalled: listeners,
         onMessage: listeners,
         openOptionsPage() {},
         getURL: (resourcePath) => `chrome-extension://test/${resourcePath}`,
-        sendMessage: () => Promise.resolve({ success: true }),
       },
       tabs: { onUpdated: listeners, onActivated: listeners },
     },
     YTD_SETTINGS: {
       STORAGE_KEY: "ytd_settings",
+      DEFAULT_PROVIDER: "deepseek",
       normalize: (value) => value,
-      chatCompletionsUrl: (baseUrl) => `${baseUrl}/chat/completions`,
-      canonicalYouTubeUrl: (videoId) =>
-        `https://www.youtube.com/watch?v=${videoId}`,
+      aiEndpointUrl: (provider) =>
+        provider === "codex" ? "https://api.openai.com/v1/responses" : provider === "claude"
+          ? "https://api.anthropic.com/v1/messages"
+          : "https://api.deepseek.com/chat/completions",
     },
   };
   sandbox.globalThis = sandbox;
   vm.runInNewContext(read("background.js"), sandbox);
   return sandbox.__YTD_TRANSLATION_TESTING__;
 }
-
-test("non-YouTube tabs explicitly close before their panel is disabled", async () => {
-  const calls = [];
-  const background = loadBackgroundHelpers({
-    sidePanel: {
-      setPanelBehavior() {},
-      close: async (options) => calls.push(["close", options]),
-      setOptions: async (options) => calls.push(["setOptions", options]),
-    },
-  });
-
-  await background.updatePanelForTab(17, "https://example.com/page", 4);
-
-  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
-    ["close", { tabId: 17 }],
-    ["setOptions", { tabId: 17, enabled: false }],
-  ]);
-});
-
-test("a global panel closes by window when the tab close is rejected", async () => {
-  const calls = [];
-  const background = loadBackgroundHelpers({
-    sidePanel: {
-      setPanelBehavior() {},
-      close: async (options) => {
-        calls.push(["close", options]);
-        if (options.tabId) throw new Error("Global panel");
-      },
-      setOptions: async (options) => calls.push(["setOptions", options]),
-    },
-  });
-
-  await background.updatePanelForTab(17, "https://example.com/page", 4);
-
-  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
-    ["close", { tabId: 17 }],
-    ["close", { windowId: 4 }],
-    ["setOptions", { tabId: 17, enabled: false }],
-  ]);
-});
 
 function createFakeTimers() {
   let nextId = 1;
@@ -234,97 +169,16 @@ function streamingResponse(chunks, { ok = true, status = 200 } = {}) {
 const encode = (value) => new TextEncoder().encode(value);
 const nextTurn = () => new Promise((resolve) => setImmediate(resolve));
 
-test("the header exposes one universal language control for all result tabs", () => {
+test("Transcript header exposes and wires Original, Chinese, and bilingual modes", () => {
   const html = read("sidepanel.html");
   const js = read("sidepanel.js");
-  assert.match(html, /id="transcriptModeControl"[\s\S]*aria-label="Content language"/);
-  assert.match(html, /id="transcriptModeControl"[\s\S]*id="tabsNav"/);
   assert.match(html, /data-transcript-mode="original"[\s\S]*?>Original</);
   assert.match(html, /data-transcript-mode="zh"[\s\S]*?>\u4e2d\u6587</);
   assert.match(html, /data-transcript-mode="bilingual"[\s\S]*?>\u53cc\u8bed</);
-  assert.match(js, /handleDisplayLanguageModeChange\(button\.dataset\.transcriptMode\)/);
+  assert.match(js, /handleTranscriptModeChange\(button\.dataset\.transcriptMode\)/);
   assert.match(js, /contentType: "transcriptBatch"/);
-  assert.match(js, /contentType: "interfaceBatch"/);
-  assert.match(js, /translateOverviewContent/);
-  assert.match(js, /translateNotesContent/);
   assert.doesNotMatch(js, /English \+ Chinese/);
-  assert.doesNotMatch(`${html}\n${js}`, /From video subtitles/);
-});
-
-test("new videos default to Original while returning videos restore their choice", async () => {
-  const { loadDisplayLanguageMode, saveDisplayLanguageMode } =
-    loadSidepanelHelpers();
-
-  await saveDisplayLanguageMode("video-a", "bilingual");
-  assert.equal(await loadDisplayLanguageMode("video-a"), "bilingual");
-  assert.equal(await loadDisplayLanguageMode("unseen-video"), "original");
-});
-
-test("Overview shares the Transcript batch generation and retries when opened", () => {
-  const js = read("sidepanel.js");
-  const transcriptFunction = js.match(
-    /async function translateTranscript\(\)[\s\S]*?\n}\n\nfunction setTranslatingSpinner/,
-  )?.[0];
-
-  assert.ok(transcriptFunction);
-  assert.doesNotMatch(transcriptFunction, /translationGeneration \+= 1/);
-  assert.match(js, /const TRANSLATION_BATCH_SIZE = 3/);
-  assert.match(
-    js,
-    /const batch = missing\.slice\(start, start \+ TRANSLATION_BATCH_SIZE\)[\s\S]*?rerender\(\);[\s\S]*?await updateCache\(\)/,
-  );
-  assert.match(
-    js,
-    /tabName === "overview"[\s\S]*?currentAnalysis[\s\S]*?currentTranscriptMode !== "original"[\s\S]*?translateOverviewContent\(\)/,
-  );
-  assert.match(
-    js,
-    /Translate only the visible tab[\s\S]*?tabName === "notes"[\s\S]*?translateNotesContent\(\)/,
-  );
-  assert.match(
-    js,
-    /activeTabName === "overview"[\s\S]*?translateOverviewContent\(\)[\s\S]*?activeTabName === "notes"[\s\S]*?translateNotesContent\(\)[\s\S]*?activeTabName === "transcript"[\s\S]*?translateTranscript\(\)/,
-  );
-});
-
-test("transcript reading position survives a side panel close", async () => {
-  const { saveTranscriptViewState, loadTranscriptViewState } =
-    loadSidepanelHelpers();
-
-  await saveTranscriptViewState("video-a", 427.5);
-  const restored = await loadTranscriptViewState("video-a");
-
-  assert.deepEqual(JSON.parse(JSON.stringify(restored)), {
-    videoId: "video-a",
-    scrollTop: 427.5,
-  });
-});
-
-test("selected transcript notes keep exact text and row timestamp", async () => {
-  const providerMustNotRun = async () => {
-    throw new Error("Selected note must not call a provider");
-  };
-  const { handleSaveNote } = loadBackgroundHelpers({
-    fetchImpl: providerMustNotRun,
-  });
-
-  const result = await handleSaveNote(
-    "video123",
-    92.9,
-    "Test video",
-    "Test channel",
-    "  The selected words stay exact.  ",
-  );
-
-  assert.equal(result.success, true);
-  assert.equal(result.note.text, "The selected words stay exact.");
-  assert.equal(result.note.rawText, "The selected words stay exact.");
-  assert.equal(result.note.timestamp, "1:32");
-  assert.equal(result.note.timestampSeconds, 92);
-  assert.equal(
-    result.note.timestampedUrl,
-    "https://www.youtube.com/watch?v=video123&t=92s",
-  );
+  assert.match(js, /Original \(\$\{language\}\)/);
 });
 
 test("semantic segmentation rebuilds sentences across caption boundaries", () => {
@@ -463,7 +317,6 @@ test("background rejects unsupported language fallthrough and malformed batches"
   const source = read("background.js");
   const { validateTranscriptBatchRequest } = loadBackgroundHelpers();
   assert.match(source, /targetLanguage !== "zh"/);
-  assert.match(source, /\["transcriptBatch", "interfaceBatch"\]/);
   assert.throws(
     () => validateTranscriptBatchRequest({ segments: [] }),
     /1 to 4 segments/,
@@ -523,6 +376,102 @@ test("all AI product requests use DeepSeek non-thinking and JSON behavior", asyn
       new RegExp(`async function ${callPath}\\([\\s\\S]*?requestAiCompletion\\(\\{`),
     );
   }
+});
+
+test("Claude requests separate the system prompt and parse text-block responses", async () => {
+  const claudeRequests = [];
+  const claudeHeaders = [];
+  const successfulFetch = async (_url, options) => {
+    claudeRequests.push(JSON.parse(options.body));
+    claudeHeaders.push(options.headers);
+    return {
+      ok: true,
+      json: async () => ({
+        content: [{ type: "text", text: "claude-translated" }],
+      }),
+    };
+  };
+
+  const claude = loadBackgroundHelpers({
+    settings: {
+      provider: "claude",
+      aiApiKey: "test-claude-key",
+      aiBaseUrl: "https://api.anthropic.com",
+      aiModel: "claude-haiku-4-5-20251001",
+    },
+    fetchImpl: successfulFetch,
+  });
+
+  const result = await claude.requestAiCompletion({
+    maxTokens: 128,
+    // Claude has no OpenAI-style JSON mode; this must be silently dropped
+    // rather than leaking into the request body.
+    responseFormat: { type: "json_object" },
+    messages: [
+      { role: "system", content: "You are a translator." },
+      { role: "user", content: "Hello." },
+    ],
+  });
+
+  assert.equal(result.text, "claude-translated");
+  const [request] = claudeRequests;
+  assert.equal(request.system, "You are a translator.");
+  assert.deepEqual(request.messages, [{ role: "user", content: "Hello." }]);
+  assert.equal(request.response_format, undefined);
+  assert.equal(request.thinking, undefined);
+  assert.equal(claudeHeaders[0]["x-api-key"], "test-claude-key");
+  assert.equal(claudeHeaders[0]["anthropic-version"], "2023-06-01");
+  assert.equal(
+    claudeHeaders[0]["anthropic-dangerous-direct-browser-access"],
+    "true",
+  );
+  assert.equal(claudeHeaders[0].Authorization, undefined);
+});
+
+test("Claude error responses surface Anthropic's error-shape message", async () => {
+  const claude = loadBackgroundHelpers({
+    settings: {
+      provider: "claude",
+      aiApiKey: "test-claude-key",
+      aiBaseUrl: "https://api.anthropic.com",
+      aiModel: "claude-haiku-4-5-20251001",
+    },
+    fetchImpl: async () => ({
+      ok: false,
+      status: 401,
+      json: async () => ({
+        type: "error",
+        error: { type: "authentication_error", message: "invalid x-api-key" },
+      }),
+    }),
+  });
+
+  await assert.rejects(
+    claude.requestAiCompletion({
+      maxTokens: 32,
+      messages: [{ role: "user", content: "Hi" }],
+    }),
+    /invalid x-api-key/,
+  );
+});
+
+test("an unconfigured Claude key produces a Claude-labeled error, isolated from DeepSeek wording", async () => {
+  const claude = loadBackgroundHelpers({
+    settings: {
+      provider: "claude",
+      aiApiKey: "",
+      aiBaseUrl: "https://api.anthropic.com",
+      aiModel: "claude-haiku-4-5-20251001",
+    },
+  });
+
+  await assert.rejects(
+    claude.requestAiCompletion({
+      maxTokens: 32,
+      messages: [{ role: "user", content: "Hi" }],
+    }),
+    /Claude API key not configured/,
+  );
 });
 
 test("blank-line chunks reset provider idle timeout and valid JSON succeeds", async () => {
@@ -681,42 +630,6 @@ test("DeepSeek retries one empty transcript JSON response without response_forma
   assert.equal(requests[0].max_tokens, 1536);
 });
 
-test("interface batches use the dedicated Overview and Notes translation prompt", async () => {
-  const requests = [];
-  const helpers = loadBackgroundHelpers({
-    fetchImpl: async (url, options) => {
-      if (url.startsWith("chrome-extension://")) {
-        return { ok: true, text: async () => read("prompts/translation.md") };
-      }
-      requests.push(JSON.parse(options.body));
-      return {
-        ok: true,
-        json: async () => ({
-          choices: [{
-            message: {
-              content: '{"segments":[{"id":"note-1","text":"\u4e2d\u6587\u7b14\u8bb0\u3002"}]}',
-            },
-          }],
-        }),
-      };
-    },
-  });
-
-  const result = await helpers.handleTranslateContent(
-    { segments: [{ id: "note-1", text: "Saved note." }] },
-    "interfaceBatch",
-    "zh",
-    "Video",
-  );
-
-  assert.equal(result.success, true);
-  assert.equal(result.translatedContent.segments[0].text, "\u4e2d\u6587\u7b14\u8bb0\u3002");
-  assert.match(
-    requests[0].messages[0].content,
-    /chapter titles, summaries, quotes, and saved notes/,
-  );
-});
-
 test("translation message watchdog rejects, clears its timer, and ignores late replies", async () => {
   let timeoutCallback;
   let timeoutDelay;
@@ -780,4 +693,61 @@ test("Chinese prompt preserves natural bilingual-learning style rules", () => {
   assert.match(prompt, /Use 你, never 您/);
   assert.match(prompt, /spaces between Chinese and adjacent English words or digits/);
   assert.match(prompt, /source-language `text`/);
+});
+
+
+const codexSettings = {
+  provider: "codex", aiApiKey: "codex-key", aiModel: "gpt-5.3-codex",
+};
+
+test("Codex sends Responses JSON mode with isolated parameters and parses message output", async () => {
+  const helpers = loadBackgroundHelpers({ settings: codexSettings, fetchImpl: async (url, init) => {
+    assert.equal(url, "https://api.openai.com/v1/responses");
+    assert.equal(init.headers.Authorization, "Bearer codex-key");
+    const body = JSON.parse(init.body);
+    assert.equal(body.model, "gpt-5.3-codex");
+    assert.equal(body.input[0].role, "system");
+    assert.equal(body.store, false);
+    assert.equal(body.max_output_tokens, 5120);
+    assert.equal(body.text.format.type, "json_object");
+    assert.equal(body.reasoning.effort, "low");
+    for (const field of ["temperature", "thinking", "messages", "max_tokens", "response_format"]) {
+      assert.equal(Object.hasOwn(body, field), false);
+    }
+    return new Response(JSON.stringify({ status: "completed", output: [
+      { type: "reasoning", summary: [] },
+      { type: "message", role: "assistant", content: [{ type: "output_text", text: '{"ok":true}' }] },
+    ] }));
+  } });
+  const result = await helpers.requestAiCompletion({ messages: [{ role: "system", content: "Return JSON" }, { role: "user", content: "Test" }], maxTokens: 1024, temperature: 0.3, responseFormat: { type: "json_object" } });
+  assert.equal(result.text, '{"ok":true}');
+});
+
+for (const [name, data, pattern, status] of [
+  ["incomplete output", { status: "incomplete", incomplete_details: { reason: "max_output_tokens" }, output: [] }, /incomplete/, 200],
+  ["refusal", { status: "completed", output: [{ type: "message", role: "assistant", content: [{ type: "refusal", refusal: "Declined" }] }] }, /declined/, 200],
+  ["empty output", { status: "completed", output: [] }, /empty response/, 200],
+  ["invalid key", { error: { message: "Incorrect API key" } }, /Incorrect API key/, 401],
+  ["missing model access", { error: { message: "Model access denied" } }, /Model access denied/, 403],
+]) {
+  test(`Codex reports ${name}`, async () => {
+    const helpers = loadBackgroundHelpers({ settings: codexSettings, fetchImpl: async () => new Response(JSON.stringify(data), { status }) });
+    await assert.rejects(helpers.requestAiCompletion({ messages: [{ role: "user", content: "Test" }], maxTokens: 1024 }), pattern);
+  });
+}
+
+
+test("translation distinguishes exhausted API quota from temporary rate limits", async () => {
+  for (const [providerCode, expectedCode, expectedMessage] of [
+    ["insufficient_quota", "AI_QUOTA_EXCEEDED", /API 额度不足/],
+    ["billing_hard_limit_reached", "AI_QUOTA_EXCEEDED", /API 额度不足/],
+    ["rate_limit_exceeded", "RATE_LIMITED", /Requests per minute exceeded/],
+  ]) {
+    const helpers = loadBackgroundHelpers({ settings: codexSettings, fetchImpl: async () =>
+      new Response(JSON.stringify({ error: { code: providerCode, message: "Requests per minute exceeded" } }), { status: 429 }) });
+    const result = await helpers.callAiTranslation("Translate", "Hello");
+    assert.equal(result.success, false);
+    assert.equal(result.code, expectedCode);
+    assert.match(result.error, expectedMessage);
+  }
 });

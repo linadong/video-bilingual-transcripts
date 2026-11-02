@@ -2,6 +2,21 @@ const YTD_OPTIONS = (() => {
   const LANGUAGE_STORAGE_KEY = "ytd_options_language";
   const PREVIEW_STORAGE_PREFIX = "youtubeDigestPreview:";
   const SUPPORTED_LANGUAGES = new Set(["en", "zh-CN"]);
+  const PROVIDER_KEY_LINK_URLS = {
+    deepseek: "https://platform.deepseek.com/api_keys",
+    claude: "https://console.anthropic.com/settings/keys",
+    codex: "https://platform.openai.com/api-keys",
+  };
+  const PROVIDER_KEY_PLACEHOLDERS = {
+    deepseek: "Paste your DeepSeek key",
+    claude: "Paste your Claude key",
+    codex: "Paste your OpenAI API key",
+  };
+  const PROVIDER_ADD_KEY_STATUS = {
+    deepseek: "addDeepseekKey",
+    claude: "addClaudeKey",
+    codex: "addCodexKey",
+  };
 
   const COPY = {
     en: {
@@ -9,7 +24,7 @@ const YTD_OPTIONS = (() => {
       languageGroupLabel: "Interface language",
       heading: "Bring your own API keys",
       lede:
-        "Keys stay in this Chrome profile and are sent only to Supadata and DeepSeek. This open-source extension has no developer server or analytics.",
+        "Keys stay in this Chrome profile and are sent only to Supadata and your selected AI provider. This open-source extension has no developer server or analytics.",
       transcriptProvider: "Transcript provider",
       supadataApiKeyLabel: "Supadata API key",
       supadataHelp: "Used to fetch timestamped YouTube subtitles. ",
@@ -24,8 +39,21 @@ const YTD_OPTIONS = (() => {
         "YouTube Digest uses DeepSeek V4 Flash for overviews, explanations, translation, and note polishing. ",
       deepseekLink: "Create a DeepSeek API key",
       deepseekHelpSuffix: ".",
-      privacyNote:
+      deepseekPrivacyNote:
         "When you use AI features, DeepSeek receives the video transcript and relevant video context. Review DeepSeek's terms and pricing before saving.",
+      claudeApiKeyLabel: "Claude API key",
+      claudeHelp:
+        "YouTube Digest uses Claude Haiku 4.5 for overviews, explanations, translation, and note polishing. ",
+      claudeLink: "Create an Anthropic API key",
+      claudeHelpSuffix: ".",
+      claudePrivacyNote:
+        "When you use AI features, Anthropic receives the video transcript and relevant video context. Review Anthropic's terms and pricing before saving.",
+      codexApiKeyLabel: "OpenAI API key",
+      codexHelp: "Use GPT-5.3-Codex for overviews, explanations, translation, and note polishing. Requires an OpenAI API key with model access; your IDE login is not used. ",
+      codexLink: "Create an OpenAI API key",
+      codexHelpSuffix: ". API usage is billed separately from ChatGPT subscriptions.",
+      codexPrivacyNote: "When you use AI features, OpenAI receives the transcript and relevant context. Requests use store: false. Your key stays in this Chrome profile and is sent only to OpenAI.",
+      addCodexKey: "Add an OpenAI API key.",
       saveSettings: "Save settings",
       localRemix: "Local remix",
       customizationTitle: "Want to use another AI model?",
@@ -59,6 +87,7 @@ const YTD_OPTIONS = (() => {
       saving: "Saving…",
       addSupadataKey: "Add a Supadata API key.",
       addDeepseekKey: "Add a DeepSeek API key.",
+      addClaudeKey: "Add a Claude API key.",
       saved: "Saved. Reopen YouTube Digest to use these settings.",
       saveFailed: "Could not save settings. Please try again.",
       copying: "Copying…",
@@ -79,7 +108,7 @@ const YTD_OPTIONS = (() => {
       languageGroupLabel: "界面语言",
       heading: "使用你自己的 API 密钥",
       lede:
-        "密钥仅保存在当前 Chrome 个人资料中，只会发送给 Supadata 和 DeepSeek。本开源扩展没有开发者服务器，也不使用分析服务。",
+        "密钥仅保存在当前 Chrome 个人资料中，只会发送给 Supadata 和你选择的 AI 服务。本开源扩展没有开发者服务器，也不使用分析服务。",
       transcriptProvider: "字幕服务",
       supadataApiKeyLabel: "Supadata API 密钥",
       supadataHelp: "用于获取带时间戳的 YouTube 字幕。",
@@ -93,8 +122,21 @@ const YTD_OPTIONS = (() => {
         "YouTube Digest 使用 DeepSeek V4 Flash 生成概览、解释内容、翻译字幕和润色笔记。",
       deepseekLink: "创建 DeepSeek API 密钥",
       deepseekHelpSuffix: "。",
-      privacyNote:
+      deepseekPrivacyNote:
         "使用 AI 功能时，DeepSeek 会收到视频字幕及相关视频上下文。保存前请查看 DeepSeek 的服务条款和价格。",
+      claudeApiKeyLabel: "Claude API 密钥",
+      claudeHelp:
+        "YouTube Digest 使用 Claude Haiku 4.5 生成概览、解释内容、翻译字幕和润色笔记。",
+      claudeLink: "创建 Anthropic API 密钥",
+      claudeHelpSuffix: "。",
+      claudePrivacyNote:
+        "使用 AI 功能时，Anthropic 会收到视频字幕及相关视频上下文。保存前请查看 Anthropic 的服务条款和价格。",
+      codexApiKeyLabel: "OpenAI API 密钥",
+      codexHelp: "使用 GPT-5.3-Codex 生成概览、解释内容、翻译字幕和润色笔记。需要具有模型访问权限的 OpenAI API 密钥，不会使用 IDE 的登录状态。",
+      codexLink: "创建 OpenAI API 密钥",
+      codexHelpSuffix: "。API 用量与 ChatGPT 订阅分开计费。",
+      codexPrivacyNote: "使用 AI 功能时，OpenAI 会收到字幕及相关上下文。请求设置 store: false。密钥保存在当前 Chrome 个人资料中，仅发送给 OpenAI。",
+      addCodexKey: "请添加 OpenAI API 密钥。",
       saveSettings: "保存设置",
       localRemix: "本地改造",
       customizationTitle: "想使用其他 AI 模型？",
@@ -127,6 +169,7 @@ const YTD_OPTIONS = (() => {
       saving: "正在保存…",
       addSupadataKey: "请添加 Supadata API 密钥。",
       addDeepseekKey: "请添加 DeepSeek API 密钥。",
+      addClaudeKey: "请添加 Claude API 密钥。",
       saved: "已保存。请重新打开 YouTube Digest 以使用这些设置。",
       saveFailed: "无法保存设置，请重试。",
       copying: "正在复制…",
@@ -348,7 +391,13 @@ const YTD_OPTIONS = (() => {
       getSafeLocalStorage(root),
     );
     const form = doc.getElementById("settingsForm");
+    const aiProviderSelect = doc.getElementById("aiProvider");
     const aiApiKeyInput = doc.getElementById("aiApiKey");
+    const aiApiKeyLabel = doc.getElementById("aiApiKeyLabel");
+    const aiApiKeyHelp = doc.getElementById("aiApiKeyHelp");
+    const aiApiKeyLink = doc.getElementById("aiApiKeyLink");
+    const aiApiKeyHelpSuffix = doc.getElementById("aiApiKeyHelpSuffix");
+    const aiProviderPrivacyNote = doc.getElementById("aiProviderPrivacyNote");
     const supadataApiKeyInput = doc.getElementById("supadataApiKey");
     const customizationPrompt = doc.getElementById("customizationPrompt");
     const copyCustomizationPromptBtn = doc.getElementById(
@@ -361,6 +410,27 @@ const YTD_OPTIONS = (() => {
     const statusStates = new Map();
     const promptDrafts = createPromptDrafts();
     let currentLanguage = "en";
+    let currentProvider = settingsApi.DEFAULT_PROVIDER;
+    let apiKeysByProvider = { ...settingsApi.DEFAULTS.aiApiKeys };
+
+    function applyProviderCopy(provider) {
+      aiApiKeyLabel.textContent = translate(
+        currentLanguage,
+        `${provider}ApiKeyLabel`,
+      );
+      aiApiKeyInput.placeholder = PROVIDER_KEY_PLACEHOLDERS[provider] || "";
+      aiApiKeyHelp.textContent = translate(currentLanguage, `${provider}Help`);
+      aiApiKeyLink.textContent = translate(currentLanguage, `${provider}Link`);
+      aiApiKeyLink.href = PROVIDER_KEY_LINK_URLS[provider] || "#";
+      aiApiKeyHelpSuffix.textContent = translate(
+        currentLanguage,
+        `${provider}HelpSuffix`,
+      );
+      aiProviderPrivacyNote.textContent = translate(
+        currentLanguage,
+        `${provider}PrivacyNote`,
+      );
+    }
 
     function renderStatus(element) {
       const state = statusStates.get(element);
@@ -404,6 +474,7 @@ const YTD_OPTIONS = (() => {
         );
       }
 
+      applyProviderCopy(currentProvider);
       updateLocalizedPrompt(
         customizationPrompt,
         nextDraft.prompt,
@@ -420,7 +491,11 @@ const YTD_OPTIONS = (() => {
         );
         const settings = migration.settings;
 
-        aiApiKeyInput.value = settings.aiApiKey;
+        currentProvider = settings.provider;
+        apiKeysByProvider = { ...settings.aiApiKeys };
+        aiProviderSelect.value = currentProvider;
+        aiApiKeyInput.value = apiKeysByProvider[currentProvider] || "";
+        applyProviderCopy(currentProvider);
         supadataApiKeyInput.value = settings.supadataApiKey;
         if (migration.migrated) {
           await storage.set({ [settingsApi.STORAGE_KEY]: settings });
@@ -444,8 +519,10 @@ const YTD_OPTIONS = (() => {
       event.preventDefault();
       setStatus(saveStatus, "saving");
 
+      apiKeysByProvider[currentProvider] = aiApiKeyInput.value;
       const settings = settingsApi.normalize({
-        aiApiKey: aiApiKeyInput.value,
+        provider: currentProvider,
+        aiApiKeys: apiKeysByProvider,
         supadataApiKey: supadataApiKeyInput.value,
       });
 
@@ -454,12 +531,16 @@ const YTD_OPTIONS = (() => {
         return;
       }
       if (!settings.aiApiKey) {
-        setStatus(saveStatus, "addDeepseekKey");
+        setStatus(
+          saveStatus,
+          PROVIDER_ADD_KEY_STATUS[settings.provider] || "addDeepseekKey",
+        );
         return;
       }
 
       try {
         await storage.set({ [settingsApi.STORAGE_KEY]: settings });
+        apiKeysByProvider = { ...settings.aiApiKeys };
         setStatus(saveStatus, "saved");
       } catch (_error) {
         setStatus(saveStatus, "saveFailed");
@@ -487,7 +568,8 @@ const YTD_OPTIONS = (() => {
     }
 
     async function clearNotes() {
-      await storage.remove("ytd_notes");
+      const all = await storage.get(null);
+      await storage.remove(["ytd_notes", ...Object.keys(all).filter((key) => key.startsWith("baiduNotes:"))]);
       setStatus(dataStatus, "notesDeleted");
     }
 
@@ -504,6 +586,12 @@ const YTD_OPTIONS = (() => {
     }
 
     form.addEventListener("submit", saveSettings);
+    aiProviderSelect.addEventListener("change", () => {
+      apiKeysByProvider[currentProvider] = aiApiKeyInput.value;
+      currentProvider = aiProviderSelect.value;
+      aiApiKeyInput.value = apiKeysByProvider[currentProvider] || "";
+      applyProviderCopy(currentProvider);
+    });
     copyCustomizationPromptBtn.addEventListener(
       "click",
       copyCustomizationPrompt,
